@@ -1547,6 +1547,13 @@
 				addCommonContexts(finalizeContexts(context, contextCallback)),
 				tstamp);
 
+			trackPerformancePaintTiming(
+				'A_CATEGORY',
+				'A_LABEL',
+				addCommonContexts(finalizeContexts(context, contextCallback)),
+				tstamp
+				);
+
 			// Send ping (to log that user has stayed on page)
 			var now = new Date();
 
@@ -1622,6 +1629,38 @@
 				}, configHeartBeatTimer);
 			}
 		}
+
+
+		/**
+		 * Track a structured event happening on this page.
+		 *
+		 * @param string category The name you supply for the group of objects you want to track
+		 * @param string label (optional) An optional string to provide additional dimensions to the event data
+		 * @param object Custom context relating to the event
+		 * @param tstamp number or Timestamp object
+		 */
+		function trackPerformancePaintTiming(category, label, context, tstamp) {
+			const performancePaintTimingObserver = new PerformanceObserver((performanceEntryList) => {
+				for (const performanceEntry of performanceEntryList.getEntries()) {
+					// console.log(performanceEntry.name); // 'first-paint' or 'first-contentful-paint'
+					// console.log(performanceEntry.startTime); // DOMHighResTimeStamp
+					// TODO: replace console.log with code that sends the FCP value to snowplow
+
+					// https://github.com/snowplow/snowplow/wiki/2-Specific-event-tracking-with-the-Javascript-tracker#37-tracking-custom-self-describing-unstructured-events
+					core.trackSelfDescribingEvent({
+						// TODO: create the JSON schema and upload it to an Iglu Schema Repository.
+						schema: 'iglu:com.snowplowanalytics.snowplow/performance_paint_timing/jsonschema/1-0-0',
+						data: {
+							name: performanceEntry.name,
+							startTime: performanceEntry.startTime,
+							category: category,
+							label: label,
+						}
+					}, addCommonContexts(context), tstamp)
+				}
+			});
+			performancePaintTimingObserver.observe({entryTypes: ["paint"]});
+		};
 
 		/**
 		 * Log that a user is still viewing a given page
